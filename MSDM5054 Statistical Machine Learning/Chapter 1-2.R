@@ -1,11 +1,9 @@
-
 ###  Father and Son's height dataset
 father.son=read.table("http://www.math.wustl.edu/~jmding/math3200/pearson.dat")
 names(father.son) <- c("father","son")
 father.son[1:30,]
 summary(father.son)
 plot(father.son)
-
 
 
 ####  Wages Datasets
