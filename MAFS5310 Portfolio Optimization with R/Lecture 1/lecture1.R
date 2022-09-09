@@ -46,4 +46,18 @@ plot(x, type = "l", col = "blue", main = "Random walk", xlab = "time", ylab = "l
 lines(cumsum(rnorm(1000)), col = "red")
 
 
+library(portfolioBacktest)  # install.packages("portfolioBacktest")
+data("dataset10")
 
+my_portfolio <- function(dataset, ...) {
+    prices <- dataset$adjusted
+    N <- ncol(prices)
+    w <- rep(1/N, N)
+    return(w)
+}
+
+bt <- portfolioBacktest(my_portfolio, dataset10)
+backtestSummary(bt)$performance
+
+
+install.packages("rticles")
