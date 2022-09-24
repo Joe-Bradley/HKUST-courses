@@ -1,0 +1,43 @@
+---
+title: "MAFS5310 Homework #0" 
+author: "XiaoLi_20925438" 
+date: "09 Sep 2022"
+output:
+    prettydoc::html_pretty:
+    theme: cayman 
+    highlight: github
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## An Introduction about yourself
+
+My name is Xiaoli, you can also call me Joe. I am 23 years old now. My hometown is in Chengdu, China. I got my bachelor degree in statistics at Nanjing University, China. After graduation, I worked as a software engineer at Bank of China for about 1 year. Then, in order to improve myself, I quit my last job and came HKUST to pursue my postgraduate degree. As a new student in MSc financial mathematics, it is actually a great honor to be enrolled in this course.
+
+## Why did you enroll in MAFS5310?
+
+-   My interest
+
+    I have taken some R related courses in my undergraduate program. However, at that time, my coding skills was too poor to appreciate some beautiful feature inside R programming. For example, about R markdown, I did use markdown to just take some class notes, but not with R markdown. I supposed that they were probably the languages that with almost no difference. However, as I took the first class of MAFS5310 and started to write homework, I found that this is not what I thought. With the contribution of the R packages, R markdown is so powerful in making fabulous documents with various format, like html, pdf, beamer, word, book, latex and etc. I was deeply attracted by those features. With that experience, I was thinking to myself that it is actually a good idea to take some R courses that improve my coding skills and match my interests.
+
+-   My career plan
+
+    I want to do risk management after my graduation. In addition to coding skills with R, this course also contains financial knowledge as well as math skills, which will be quite useful in my future career.
+
+## What do you expect to learn from MAFS5310 by the end of the semester?
+
+I like what Prof. Daniel said in the first week, "you code it, you understand it". In addition to some basic theories, I expect to put those theories into coding practice, which might include Markowitz, VaR, volatility Measure, robust optimization and etc.
+
+## Anything else you would like to share (be creative)?
+
+Some packages that contain nice R markdown templates:
+
+-   rticles
+
+-   prettydoc
+
+-   rmdformats
+
+-   tufte

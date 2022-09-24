@@ -1,0 +1,395 @@
+---
+title: "Strategy Function" 
+author: "Joe" 
+date: "9/24/2022"
+output:
+    rmdformats::readthedown: 
+    self_contained: true 
+    thumbnails: true 
+    lightbox: true 
+    gallery: false 
+    highlight: tango
+---
+
+```{r setup, include=FALSE}
+## Global options
+knitr::opts_chunk$set(cache = TRUE, eval=FALSE)
+```
+
+## Equally Weighted Portfolio(EWP)
+
+```{r}
+EWP_portfolio <- function(dataset, ...) {
+    prices <- dataset$adjusted
+    N <- ncol(prices)
+    return(rep(1/N, N))
+}
+```
+
+## Inverse volatility portfolio(IVP)
+
+```{r}
+# create function for IVP
+IVP <- function(Sigma) {
+  sigma <- sqrt(diag(Sigma))
+  w <- 1/sigma
+  w <- w/sum(w)
+  return(w)
+}
+
+# this function can now be used as
+w_IVP <- IVP(Sigma)
+```
+
+## **Markowitz's MVP(Mean-Variance)**
+
+```{r}
+Markowitz_portfolio_fun <- function(dataset, ...) {
+    
+    # compute log returns
+    X <- as.matrix(diff(log(dataset$adjusted))[-1])
+    
+    # compute mean vector
+    mu <- colMeans(X)  
+    
+    # compute the SCM
+    Sigma <- cov(X)
+    
+    # design mean-variance portfolio
+    w <- Variable(nrow(Sigma))
+    prob <- Problem(Maximize(t(mu) %*% w - 0.5*quad_form(w, Sigma)),
+                    constraints = list(w >= 0, sum(w) == 1))
+    
+    result <- solve(prob)
+    
+    return(as.vector(result$getValue(w)))
+}
+```
+
+## **Global minimum variance portfolio(GMVP)**
+
+```{r}
+GMVP_portfolio_fun <- function(dataset, ...) {
+    
+    # compute log returns
+    X <- diff(log(dataset$adjusted))[-1]
+    
+    # compute SCM
+    Sigma <- cov(X)  
+    
+    # design GMVP
+    prob <- Problem(
+        Minimize(quad_form(w, Sigma)), 
+        constraints = list(w >= 0, sum(w) == 1)
+    )
+    result <- CVXR::solve(prob)
+    w <- as.vector(result$getValue(w))
+    names(w) <- colnames(Sigma)
+    return(w)
+    
+    # w <- solve(Sigma, rep(1, nrow(Sigma)))
+    # w <- abs(w)/sum(abs(w))
+    # return(w)
+}
+
+
+GMVP <- function(Sigma) {
+  w <- Variable(nrow(Sigma))
+  prob <- Problem(Minimize(quad_form(w, Sigma)), 
+                  constraints = list(w >= 0, sum(w) == 1))
+  result <- CVXR::solve(prob)
+  w <- as.vector(result$getValue(w))
+  names(w) <- colnames(Sigma)
+  return(w)
+}
+
+# this function can now be used as
+w_GMVP <- GMVP(Sigma)
+```
+
+## Quintile
+
+```{r}
+quintile_portfolio_fun <- function(dataset, ...) {
+    
+    # compute log returns
+    X <- diff(log(dataset$adjusted))[-1]  
+    
+    # compute sigma
+    N <- ncol(X)
+    
+    # design quintile portfolio
+    ranking <- sort(
+        colMeans(X), 
+        decreasing = TRUE, 
+        index.return = TRUE
+    )$ix
+    
+    w <- rep(0, N)
+    
+    w[ranking[1:round(N/5)]] <- 1/round(N/5)
+    
+    return(w)
+}
+```
+
+## **Maximum Sharpe ratio portfolio(nonlinear solver)**
+
+```{r}
+library(nloptr)
+
+# define the nonconvex objective function
+fn_SR <- function(w) {
+  return(as.numeric(t(w) %*% mu / sqrt(t(w) %*% Sigma %*% w)))
+}
+  
+# initial point
+w0 <- rep(1/N, N)
+
+res <- nloptr::slsqp(
+    w0, 
+    fn_SR,
+    lower = rep(0, N),  # w >= 0
+    heq = function(w) return(sum(w) - 1) # sum(w) = 1
+)    
+w_nonlinear_solver <- res$par
+
+res
+```
+
+## **Maximum Sharpe ratio portfolio(bisection)**
+
+```{r}
+# define the inner solver based on an SOCP solver 
+# (we will simply use CVXR for convenience, see: https://cvxr.rbind.io/cvxr_functions/)
+library(CVXR)
+
+# square-root of matrix Sigma
+Sigma_12 <- chol(Sigma)
+
+# sanity check
+max(abs(t(Sigma_12) %*% Sigma_12 - Sigma)) 
+
+# create function for MVP
+SOCP_bisection <- function(t) {
+    
+    w <- Variable(nrow(Sigma))
+    
+    prob <- Problem(
+        Maximize(0),
+        constraints = list(
+            t*cvxr_norm(Sigma_12 %*% w, 2) <= t(mu) %*% w,
+            sum(w) == 1,
+            w >= 0
+        )
+    )
+    result <- CVXR::solve(prob)
+    return(list("status" = result$status, "w" = as.vector(result$getValue(w))))
+}
+
+# now run the bisection algorithm
+t_lb <- 0   # for sure the problem is feasible in this case
+t_ub <- 10  # a tighter upper bound coud be chose, but a Sharpe ratio of 10 surely cannot be achieved
+
+while(t_ub - t_lb > 1e-6) {
+  t <- (t_ub + t_lb)/2  # midpoint
+  if(SOCP_bisection(t)$status == "infeasible")
+    t_ub <- t
+  else
+    t_lb <- t
+}
+w_bisection <- SOCP_bisection(t_lb)$w
+
+# comparison between two solutions
+round(cbind(w_nonlinear_solver, w_bisection), digits = 3)
+
+# Sharpe ratio of two solutions
+c("nonlinear_solver" = fn_SR(w_nonlinear_solver), 
+  "bisection"        = fn_SR(w_bisection))
+```
+
+## **Maximum Sharpe ratio portfolio(dinkelbach)**
+
+```{r}
+# define the inner solver based on an SOCP solver 
+# (we will simply use CVXR for convenience, see: https://cvxr.rbind.io/cvxr_functions/)
+library(CVXR)
+
+# square-root of matrix Sigma
+Sigma_12 <- chol(Sigma)
+
+# sanity check
+max(abs(t(Sigma_12) %*% Sigma_12 - Sigma)) 
+
+# create function for MVP
+SOCP_Dinkelbach <- function(y) {
+    w <- Variable(nrow(Sigma))
+    prob <- Problem(
+        Maximize(t(mu) %*% w - y*cvxr_norm(Sigma_12 %*% w, 2)),
+        constraints = list(sum(w) == 1,w >= 0)
+    )
+  result <- CVXR::solve(prob)
+  return(as.vector(result$getValue(w)))
+}
+
+# initial point (has to satisfy t(w_k) %*% mu>=0)
+i_max <- which.max(mu)
+w_k <- rep(0, N)  
+w_k[i_max] <- 1
+
+# now the iterative Dinkelbach algorithm
+k <- 1
+while(k == 1 || max(abs(w_k - w_prev)) > 1e-6) {
+  w_prev <- w_k
+  y_k <- as.numeric(t(w_k) %*% mu / sqrt(t(w_k) %*% Sigma %*% w_k))
+  w_k <- SOCP_Dinkelbach(y_k)
+  k <- k + 1
+}
+w_Dinkelbach <- w_k
+# cat("Number of iterarions:", k-1)
+```
+
+## **Maximum Sharpe ratio portfolio(rewritten** convex form)
+
+```{r}
+# create function for MSRP
+MSRP <- function(mu, Sigma) {
+  w_ <- Variable(nrow(Sigma))
+  prob <- Problem(Minimize(quad_form(w_, Sigma)),
+                  constraints = list(w_ >= 0, t(mu) %*% w_ == 1))
+  result <- CVXR::solve(prob)
+  w <- as.vector(result$getValue(w_)/sum(result$getValue(w_)))
+  names(w) <- colnames(Sigma)
+  return(w)
+}
+
+# this function can now be used as
+w_MSRP <- MSRP(mu, Sigma)
+```
+
+## **Risk parity portfolio(RPP,** [vanilla](https://cran.r-project.org/web/packages/riskParityPortfolio/vignettes/RiskParityPortfolio.html#vanilla-convex-formulation)**)**
+
+```{r}
+library(riskParityPortfolio)
+rpp_vanilla <- riskParityPortfolio(Sigma)
+```
+
+## **Risk parity portfolio(RPP,** [naive](https://cran.r-project.org/web/packages/riskParityPortfolio/vignettes/RiskParityPortfolio.html#naive-diagonal-formulation)**)**
+
+```{r}
+library(riskParityPortfolio)
+rpp_naive <- riskParityPortfolio(Sigma, formulation = "diag")
+```
+
+## **Risk parity portfolio(RPP,** mu**)**
+
+```{r}
+rpp_mu <- riskParityPortfolio(
+    Sigma, 
+    formulation = "rc-over-b-double-index",
+    # for expected return term
+    mu = mu, 
+    lmd_mu = 1e-3, 
+    w_ub = 0.16 # for box upper bound constraints
+)            
+
+#比较&画图
+w_all <- cbind("EWP"           = rep(1/nrow(Sigma), nrow(Sigma)),
+               "RPP (naive)"   = rpp_naive$w,
+               "RPP (vanilla)" = rpp_vanilla$w,
+               "RPP + mu"      = rpp_mu$w)
+barplotPortfolioRisk(w_all, Sigma)
+```
+
+## RPP example
+
+```{r}
+library(xts)
+library(portfolioBacktest)
+library(riskParityPortfolio)
+
+# download price data
+faang_data <- stockDataDownload(c("GOOG", "NFLX", "AAPL", "AMZN", "FB"),
+                                from = "2014-01-01", to = "2019-06-25")
+
+# define portfolios to be backtested
+# risk parity portfolio
+risk_parity <- function(dataset) {
+  prices <- dataset$adjusted
+  log_returns <- diff(log(prices))[-1]
+  return(riskParityPortfolio(cov(log_returns))$w)
+}
+
+# tangency portfolio (maximum sharpe ratio)
+library(quadprog)
+max_sharpe_ratio <- function(dataset) {
+    prices <- dataset$adjusted
+    log_returns <- diff(log(prices))[-1]
+    N <- ncol(prices)
+    Sigma <- cov(log_returns)
+    mu <- colMeans(log_returns)
+    if (all(mu <= 1e-8))
+        return(rep(0, N))
+    Dmat <- 2 * Sigma
+    Amat <- diag(N)
+    Amat <- cbind(mu, Amat)
+    bvec <- c(1, rep(0, N))
+    dvec <- rep(0, N)
+    res <- solve.QP(Dmat = Dmat, dvec = dvec, Amat = Amat, bvec = bvec, meq = 1)
+    w <- res$solution
+    return(w/sum(w))
+}
+
+# call portfolioBacktest and benchmark against the uniform (1/N) portfolio
+bt <- portfolioBacktest(list("risk parity portfolio" = risk_parity,
+                             "tangency portfolio"    = max_sharpe_ratio),
+                        list(faang_data),
+                        T_rolling_window = 12*20, 
+                        optimize_every = 3*20, rebalance_every = 3*20)
+
+# dates of the designed portfolios
+index(bt$tangency$data1$w_designed)
+#>  [1] "2014-12-12" "2015-03-12" "2015-06-08" "2015-09-01" "2015-11-25" "2016-02-24" "2016-05-19" "2016-08-15"
+#>  [9] "2016-11-08" "2017-02-06" "2017-05-03" "2017-07-28" "2017-10-23" "2018-01-19" "2018-04-17" "2018-07-12"
+#> [17] "2018-10-05" "2019-01-03" "2019-04-01"
+
+# check performance summary
+backtestSummary(bt)$performance
+#>                   risk parity portfolio tangency portfolio
+#> Sharpe ratio                  1.3800144          0.8787596
+#> max drawdown                  0.3062046          0.3516856
+#> annual return                 0.3117200          0.2324203
+#> annual volatility             0.2258817          0.2644868
+#> Sterling ratio                1.0180122          0.6608751
+#> Omega ratio                   1.2710283          1.1793760
+#> ROT (bps)                  8310.1199557        793.0188434
+
+# plot cumulative returns chart
+backtestChartCumReturns(bt)
+
+# plot max drawdown chart
+backtestChartDrawdown(bt)
+
+# plot assets exposures over time
+backtestChartStackedBar(bt, portfolio = "risk parity portfolio", legend = TRUE)
+```
+
+## Most diversified portfolio (MDP)
+
+```{r}
+w_MDP <- MSRP(mu = sqrt(diag(Sigma)), Sigma)
+```
+
+## **Maximum decorrelation portfolio (MDCP)**
+
+```{r}
+# create function for MDCP based on GMVP()
+MDCP <- function(Sigma) {
+  C <- diag(1/sqrt(diag(Sigma))) %*% Sigma %*% diag(1/sqrt(diag(Sigma)))
+  colnames(C) <- colnames(Sigma)
+  return(GMVP(Sigma = C))
+}
+
+# this function can now be used as
+w_MDCP <- MDCP(Sigma)
+```
