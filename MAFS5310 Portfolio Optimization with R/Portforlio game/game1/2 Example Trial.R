@@ -1,20 +1,24 @@
 library(portfolioBacktest)
+library(riskParityPortfolio)
 library(CVXR)
 
-# load the SP500 assets
-data("SP500_symbols")
-SP500_YAHOO <- stockDataDownload(
-    stock_symbols = SP500_symbols, 
-    from = "2010-12-01", 
-    to = "2018-12-01"
-)
+#data("dataset10")
+load("stockdata_from_2008-12-01_to_2018-12-01_(065fe3c9e1991cd1ec13c8d1c18d3e2c).RData")
 
-# generate 100 random samples each containing 50 random assets over a random window of two years
+# # load the SP500 assets
+# data("SP500_symbols")
+# SP500_YAHOO <- stockDataDownload(
+#     stock_symbols = SP500_symbols, 
+#     from = "2010-12-01", 
+#     to = "2018-12-01"
+# )
+
+#generate 100 random samples each containing 50 random assets over a random window of two years
 N_datasets <- 100
 mydataset <- financialDataResample(
-    SP500_YAHOO, 
-    N = 50, 
-    T = 252*2, 
+    stockdata,
+    N = 50,
+    T = 252*2,
     num_datasets = N_datasets
 )
 
@@ -60,6 +64,7 @@ GMVP <- function(dataset, ...) {
     return(as.vector(result$getValue(w)))
 }
 
+# MVP
 MVP <- function(dataset, ...) {
     prices <- dataset$adjusted
     N <- ncol(prices)
@@ -76,22 +81,68 @@ MVP <- function(dataset, ...) {
     return(as.vector(result$getValue(w)))
 }
 
+# MSRP
+MSRP <- function(dataset, ...) {
+    prices <- dataset$adjusted
+    X <- diff(log(prices))[-1]  # returns
+    mu <- colMeans(X)
+    Sigma <- cov(X)
+    
+    w_ <- Variable(nrow(Sigma))
+    prob <- Problem(Minimize(quad_form(w_, Sigma)),
+                    constraints = list(w_ >= 0, t(mu) %*% w_ == 1))
+    result <- CVXR::solve(prob)
+    w <- as.vector(result$getValue(w_)/sum(result$getValue(w_)))
+    names(w) <- colnames(Sigma)
+    return(w)
+}
 
+# Most diversified portfolio (MDP)
+MDP <- function(dataset, ...) {
+    prices <- dataset$adjusted
+    X <- diff(log(prices))[-1]  # returns
+    Sigma <- cov(X)
+    mu <- sqrt(diag(Sigma))
+    
+    w_ <- Variable(nrow(Sigma))
+    prob <- Problem(Minimize(quad_form(w_, Sigma)),
+                    constraints = list(w_ >= 0, t(mu) %*% w_ == 1))
+    result <- CVXR::solve(prob)
+    w <- as.vector(result$getValue(w_)/sum(result$getValue(w_)))
+    names(w) <- colnames(Sigma)
+    return(w)
+}
 
-portfolio_list <- list("QuintP" = QuintP,
-                       "GMVP"   = GMVP,
-                       "MVP"    = MVP)
+# RPP 
+risk_parity <- function(dataset, ...) {
+    prices <- dataset$adjusted
+    log_returns <- diff(log(prices))[-1]
+    return(riskParityPortfolio(cov(log_returns))$w)
+}
+
+portfolio_list <- list("QuintP"      = QuintP,
+                       #"GMVP"        = GMVP,
+                       "MVP"         = MVP,
+                       "IVP"         = IVP,
+                       "MSRP"        = MSRP,
+                       "risk_parity" = risk_parity,
+                       "MDP"         = MDP)
 
 # backtesting based on 100 datasets randomly chosen
 bt_all_port <- portfolioBacktest(
     portfolio_funs = portfolio_list,
     dataset = mydataset,
-    benchmark = c("IVP","uniform", "index"),
-    lookback = 252*2/3, 
-    optimize_every = 20, 
-    rebalance_every = 1, 
-    show_progress_bar = FALSE,
-    paral_datasets = 5
+    benchmark = c("1/N", "index"),
+    # lookback = 252*2/3, 
+    # optimize_every = 20, 
+    # rebalance_every = 1, 
+    # show_progress_bar = FALSE,
+    # paral_datasets = 5,
+    shortselling = FALSE,
+    leverage = 1,
+    lookback = 252,
+    optimize_every = 20,
+    rebalance_every = 1
 )
 
 res_summary_median <- backtestSummary(bt_all_port)
@@ -99,10 +150,24 @@ res_summary_median <- backtestSummary(bt_all_port)
 # leaderboard
 summaryTable(
     res_summary_median, 
-    type = "DT", 
+    type = "DT",    
     order_col = 2, 
     order_dir = "desc"
 )
+
+# leaderboard2
+leaderboard2 <- backtestLeaderboard(
+    bt_all_port, 
+    weights = list(
+        "Sharpe ratio"  = 1, 
+        "max drawdown"  = 1, 
+        "annual return" = 1, 
+        "failure rate"  = 7)
+)
+
+# show leaderboard
+library(gridExtra)
+grid.table(leaderboard2$leaderboard_scores)
 
 # bar plot
 summaryBarPlot(
