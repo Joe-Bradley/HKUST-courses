@@ -1,3 +1,4 @@
 *.idea
 *.Rhistory
 *.DS_Store
+*.RData
