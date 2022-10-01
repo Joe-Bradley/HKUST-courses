@@ -2,10 +2,22 @@ library(portfolioBacktest)
 library(riskParityPortfolio)
 library(CVXR)
 
-#data("dataset10")
-load("stockdata_from_2008-12-01_to_2018-12-01_(065fe3c9e1991cd1ec13c8d1c18d3e2c).RData")
 
-# # load the SP500 assets
+#data("dataset10")
+load("MAFS5310 Portfolio Optimization with R/Portforlio game/game0/stockdata_from_2008-12-01_to_2018-12-01.RData")
+
+# show dataset class
+# class(dataset10)
+
+# show names of a few datasets
+# names(dataset10[1:3])
+
+# structure of one dataset
+# names(dataset10$`dataset 1`)
+
+# head(dataset10$`dataset 1`$adjusted[, 1:3])
+
+# download the SP500 assets
 # data("SP500_symbols")
 # SP500_YAHOO <- stockDataDownload(
 #     stock_symbols = SP500_symbols, 
@@ -14,7 +26,8 @@ load("stockdata_from_2008-12-01_to_2018-12-01_(065fe3c9e1991cd1ec13c8d1c18d3e2c)
 # )
 
 #generate 100 random samples each containing 50 random assets over a random window of two years
-N_datasets <- 100
+N_datasets <- 1
+#N_datasets <- 100
 mydataset <- financialDataResample(
     stockdata,
     N = 50,
@@ -22,7 +35,10 @@ mydataset <- financialDataResample(
     num_datasets = N_datasets
 )
 
-# define strategy
+
+#############################################################################
+#######################define strategy#######################################
+#############################################################################
 QuintP <- function(dataset, ...) {
     prices <- dataset$adjusted
     N <- ncol(prices)
@@ -114,42 +130,51 @@ MDP <- function(dataset, ...) {
 }
 
 # RPP 
-risk_parity <- function(dataset, ...) {
+RPP <- function(dataset, ...) {
     prices <- dataset$adjusted
     log_returns <- diff(log(prices))[-1]
     return(riskParityPortfolio(cov(log_returns))$w)
 }
 
-portfolio_list <- list("QuintP"      = QuintP,
-                       #"GMVP"        = GMVP,
-                       "MVP"         = MVP,
-                       "IVP"         = IVP,
-                       "MSRP"        = MSRP,
-                       "risk_parity" = risk_parity,
-                       "MDP"         = MDP)
+#############################################################################
+###########################回测##############################################
+#############################################################################
+
+# portfolio_list
+portfolio_list <- list("QuintP" = QuintP,
+                       "GMVP"   = GMVP,
+                       "MVP"    = MVP,
+                       "IVP"    = IVP,
+                       "MSRP"   = MSRP,
+                       "RPP"    = RPP,
+                       "MDP"    = MDP)
+
 
 # backtesting based on 100 datasets randomly chosen
-bt_all_port <- portfolioBacktest(
+bt <- portfolioBacktest(
     portfolio_funs = portfolio_list,
     dataset = mydataset,
     benchmark = c("1/N", "index"),
-    # lookback = 252*2/3, 
-    # optimize_every = 20, 
-    # rebalance_every = 1, 
-    # show_progress_bar = FALSE,
-    # paral_datasets = 5,
     shortselling = FALSE,
     leverage = 1,
     lookback = 252,
     optimize_every = 20,
     rebalance_every = 1
+    # lookback = 252*2/3,
+    # optimize_every = 20,
+    # rebalance_every = 1,
+    # show_progress_bar = FALSE,
+    # paral_datasets = 5,
 )
 
-res_summary_median <- backtestSummary(bt_all_port)
+# 查看全部数据的表现
+res_sum <- backtestSummary(bt)
+names(res_sum)
+res_sum$performance_summary
 
 # leaderboard
 summaryTable(
-    res_summary_median, 
+    res_sum, 
     type = "DT",    
     order_col = 2, 
     order_dir = "desc"
@@ -157,7 +182,7 @@ summaryTable(
 
 # leaderboard2
 leaderboard2 <- backtestLeaderboard(
-    bt_all_port, 
+    bt, 
     weights = list(
         "Sharpe ratio"  = 1, 
         "max drawdown"  = 1, 
@@ -171,12 +196,58 @@ grid.table(leaderboard2$leaderboard_scores)
 
 # bar plot
 summaryBarPlot(
-    res_summary_median, 
+    res_sum, 
     measures = c("Sharpe ratio", "max drawdown")
 )
 
 # box plot
 backtestBoxPlot(
-    bt_all_port, 
+    bt, 
     "Sharpe ratio"
+)
+
+# 查看某个组合在某个数据集的表现
+backtestSelector(
+    bt,
+    portfolio_name = "GMVP", 
+    measures = c(
+        "Sharpe ratio", 
+        "max drawdown",
+        "annual return",
+        "annual volatility",
+        "Sterling ratio", 
+        "Omega ratio"
+    )
+)
+
+# 查看全部的组合在某个数据集的表现
+backtestTable(
+    bt, 
+    measures = c("Sharpe ratio", "max drawdown")
+)
+
+# 全部数据的表现的画图
+summaryTable(
+    res_sum,
+    type = "DT", 
+    order_col = "Sharpe ratio", 
+    order_dir = "desc"
+)
+
+# 柱状图
+summaryBarPlot(
+    res_sum, 
+    measures = c("Sharpe ratio", "max drawdown")
+)
+
+# 箱形图
+backtestBoxPlot(
+    bt, 
+    measure = "Sharpe ratio"
+)
+
+# 累计收益分布图
+backtestChartCumReturn(
+    bt, 
+    c("Quintile", "GMVP", "index","1/N")
 )

@@ -86,17 +86,6 @@ quintile_portfolio_fun <- function(dataset, ...) {
 }
 
 
-
-
-
-
-
-
-
-
-
-
-
 #####################backtest################################################
 portfolios <- list(
     "Quintile" = quintile_portfolio_fun,
