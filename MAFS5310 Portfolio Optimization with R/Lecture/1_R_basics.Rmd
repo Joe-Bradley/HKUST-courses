@@ -1,0 +1,155 @@
+---
+title: "R basics" 
+author: "Joe" 
+date: "01 Oct 2022"
+output:
+    rmdformats::readthedown: 
+    self_contained: true 
+    thumbnails: true 
+    lightbox: true 
+    gallery: false 
+    highlight: tango
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, prompt=TRUE, comment='',warning = FALSE, message = FALSE, collapse = TRUE, comment='=>',prompt=FALSE)
+```
+
+# Variables
+
+## vectors
+
+```{r}
+x <- "Hello"
+x
+```
+
+```{r}
+y <- c("Hello", "everyone")
+y
+```
+
+```{r}
+# see the variables in memory
+ls()
+```
+
+```{r}
+# info about variable 
+str(x)
+str(y)
+```
+
+```{r}
+# see head and tail 
+x <- c(1:1000)
+head(x)
+tail(x)
+```
+
+```{r eval=FALSE, include=FALSE}
+# help about function matrix()
+help(matrix) 
+# same thing
+?matrix 
+# show an example of function matrix()
+example(matrix)   
+
+# list all functions containing string "matrix"
+apropos("matrix")  
+
+# show available vingettes
+vignette()  
+
+ # show specific vignette
+vignette("xts") 
+```
+
+## Data types
+
+### Vectors
+
+```{r}
+# numeric vector
+a <- c(1, 2, 5.3, 6, -2, 4)  
+
+# character vector
+b <- c("one", "two", "three") 
+
+# logical vector
+c <- c(TRUE, TRUE, TRUE, FALSE, TRUE, FALSE) 
+
+a[2]
+a[c(2, 4)]
+```
+
+```{r collapse=TRUE}
+# 矩阵乘法
+x <- c(1, 2)
+y <- c(10, 20)
+
+# 对应元素相乘
+x*y
+
+# 向量积
+x %*% y
+
+# 矩阵积
+x %o% y
+```
+
+```{r}
+names(y)
+
+names(y) <- c("convex", "optimization")
+
+str(y)
+
+length(y)
+```
+
+### Matrices
+
+```{r}
+# define matrix
+x <- matrix(1:20, nrow = 5, ncol = 4)
+x
+
+# give name
+colnames(x) <- c("col1", "col2", "col3", "col4")
+rownames(x) <- c("row1", "row2", "row3", "row4", "row5")
+x
+
+str(x)
+
+dim(x)
+
+nrow(x)
+
+ncol(x)
+```
+
+```{r}
+x
+
+# 取列向量，返回vector
+x[, 4]
+
+# 取列向量，返回matrix
+x[, 4, drop = FALSE]
+
+# 取数
+x[2:4, 1:3]
+```
+
+### Arrays & Datarframe
+
+```{r}
+d <- c(1, 2, 3, 4)
+e <- c("red", "white", "red", NA)
+f <- c(TRUE, TRUE, TRUE, FALSE)
+myframe <- data.frame(d, e, f)
+# variable names
+names(myframe) <- c("ID", "Color", "Passed")
+myframe
+```

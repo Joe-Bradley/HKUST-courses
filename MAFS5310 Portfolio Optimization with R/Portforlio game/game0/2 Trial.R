@@ -26,7 +26,7 @@ load("MAFS5310 Portfolio Optimization with R/Portforlio game/game0/stockdata_fro
 # )
 
 #generate 100 random samples each containing 50 random assets over a random window of two years
-N_datasets <- 1
+N_datasets <- 2
 #N_datasets <- 100
 mydataset <- financialDataResample(
     stockdata,
@@ -155,15 +155,16 @@ bt <- portfolioBacktest(
     portfolio_funs = portfolio_list,
     dataset = mydataset,
     benchmark = c("1/N", "index"),
-    shortselling = FALSE,
+    shortselling = TRUE,
     leverage = 1,
     lookback = 252,
     optimize_every = 20,
-    rebalance_every = 1
+    rebalance_every = 1,
+    show_progress_bar = FALSE,
     # lookback = 252*2/3,
     # optimize_every = 20,
     # rebalance_every = 1,
-    # show_progress_bar = FALSE,
+    
     # paral_datasets = 5,
 )
 
@@ -172,21 +173,20 @@ res_sum <- backtestSummary(bt)
 names(res_sum)
 res_sum$performance_summary
 
-# leaderboard
-summaryTable(
-    res_sum, 
-    type = "DT",    
-    order_col = 2, 
-    order_dir = "desc"
-)
+# # leaderboard
+# summaryTable(
+#     res_sum, 
+#     type = "DT",    
+#     order_col = 2, 
+#     order_dir = "desc"
+# )
 
 # leaderboard2
 leaderboard2 <- backtestLeaderboard(
     bt, 
     weights = list(
-        "Sharpe ratio"  = 1, 
-        "max drawdown"  = 1, 
-        "annual return" = 1, 
+        "Sharpe ratio"  = 1.5, 
+        "max drawdown"  = 1.5, 
         "failure rate"  = 7)
 )
 

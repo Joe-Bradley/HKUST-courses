@@ -27,7 +27,7 @@ library(quadprog)
 library(ggplot2)
 
 # set global digits
-options(digits=10)
+options(digits=14)
 
 # calcualte solution of Markowitz’s mean-variance portfolio
 cal_solution <- function(Dmat,Amat,bvec,lamda){
@@ -44,7 +44,7 @@ cal_solution <- function(Dmat,Amat,bvec,lamda){
         Expection = cbind(Expection,t(mu)%*%weight)
         Variance = cbind(Variance,(t(weight)%*%Dmat%*%weight)^0.5)
     }
-    res = data.frame(Risk = t(Variance), Return = t(Expection))
+    res = data.frame(Risk = t(Variance), Return = t(Expection),lambda = lamda)
     return(res)
 }
 
@@ -68,6 +68,10 @@ bvec = c(0,0,0,1,-1)
 efficient_points = cal_solution(Dmat,Amat,bvec,lamda= lamda_points)
 efficient_curve = cal_solution(Dmat,Amat,bvec,lamda = lamda_curve)
 
+efficient_points
+```
+
+```{r message=FALSE, warning=FALSE, paged.print=FALSE}
 # plot
 ggplot() + 
     geom_point(
