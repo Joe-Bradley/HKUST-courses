@@ -1,0 +1,399 @@
+---
+title: "C++ basics" 
+author: "Joe" 
+date: "04 Oct 2022"
+output:
+    rmdformats::readthedown: 
+    self_contained: true 
+    thumbnails: true 
+    lightbox: true 
+    gallery: false 
+    highlight: tango
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, prompt=TRUE, comment='',warning = FALSE, message = FALSE, collapse = TRUE, comment='=>',prompt=FALSE)
+```
+
+# Basics
+
+### 数据类型
+
+|     类型     | 字节(Bytes) |        范围         |
+|:------------:|:-----------:|:-------------------:|
+|     bool     |      1      |       0 or 1        |
+|     char     |      1      |  -2^7^ --- 2^7^ -1  |
+|   wchar_t    |      2      | -2^15^ --- 2^15^ -1 |
+|    short     |      2      | -2^15^ --- 2^15^ -1 |
+|     int      |      4      | -2^31^ --- 2^31^-1  |
+|     long     |      4      | -2^31^ --- 2^31^-1  |
+|    float     |      4      | -2^31^ --- 2^31^-1  |
+|    double    |      8      | -2^63^ --- 2^63^-1  |
+| unsigned int |      4      |      0-2\^32-1      |
+
+```{rcpp}
+#include <iostream>
+using namespace std;
+
+int main() {
+    unsigned int 32
+    unsigned long long 64
+    // double = long double
+    // 1(符号x) + 11(指数y) + 52(小数z) x1.z*2^y
+}
+```
+
+## string加法
+
+```{rcpp}
+#include <iostream>
+using namespace std;
+
+int main() {
+    // 不可以定义 string s = "Joe"+"Bradley"
+    // 定义完可以用加法
+    string s1 = "Joe"
+                "Bradley";
+                
+    //no leading space or tab
+    string s2 = "Joe\
+Bradley";
+}
+```
+
+## 引用源文件
+
+```{rcpp}
+#include <iostream>
+#include "/Users/joebradley/Desktop/Working Space/for_virtue_barn/Resources/Code/1 basic/sizeofBasicTypes.cpp"
+#include "/Users/joebradley/Desktop/Working Space/for_virtue_barn/Resources/Code/1 basic/sizeofBasicTypes.h"
+
+
+using namespace std;
+
+int main() {
+
+    sizeofBasicTypes();
+}
+
+```
+
+## reference
+
+-   b,a是一个东西
+
+```{rcpp}
+#include <iostream>
+using namespace std;
+
+int main() {
+    int a = 1;
+    int &b = a;
+    a = 2;
+    cout << b << endl;
+    cout << a << endl;
+}
+```
+
+-   b,a是两个变量
+
+```{rcpp}
+#include <iostream>
+using namespace std;
+
+int main() {
+    int a = 1;
+    int b = a;
+    a = 2;
+    cout << b << endl;
+    cout << a << endl;
+}
+```
+
+## typedef
+
+```{rcpp}
+#include <iostream>
+using namespace std;
+
+int main() {
+    typedef int mydate;
+    mydate day1 = 890;
+    cout << day1 << endl;
+}
+```
+
+## enumerations
+
+```{rcpp}
+#include <iostream>
+using namespace std;
+
+int main() {
+    enum month { 
+        JAN, FEB, MAR, APR, MAY, JUN, JUL, AUG, SEP, OCT, NOV, DEC
+    };
+    month current = OCT;
+    if (current == OCT) {
+        cout << current << endl;
+    }
+}
+```
+
+# Expression
+
+## 小运算符
+
+```{rcpp}
+#include <iostream>
+using namespace std;
+
+int main() {
+    //小数除法
+    double a = 21.0 / 5;
+    cout << a << endl;
+    
+    //整数除法
+    int a = 21 / 5;
+    cout << a << endl;
+    
+    //双赋值
+    string a, b;
+    a = b = "asda";
+    cout << a << '\t' << b << endl;
+    
+    //i++与++i的区别
+    i = 1;
+    
+    // i已经变成了2，但是i++作为一个不可赋值的对象没有变
+    i++
+        
+    // i已经变成了2，++i作为一个可以赋值的对象值也为2
+    ++i
+    int *p = &(++i) // 取对象的地址
+    cout << p1 << endl;
+}
+```
+
+## sort
+
+```{rcpp}
+#include <iostream>
+using namespace std;
+
+int main() {
+    int x, y;
+    int temp;
+    cout << "Enter 2 integers: ";
+    cin >> x >> y;
+    if (x > y) {
+        temp = x;
+        x = y;
+        y = temp;
+    }
+    cout << x << "\t" << y << endl;
+}
+```
+
+## vector
+
+```{rcpp}
+#include <iostream>
+#include <vector>
+using namespace std;
+
+int main() {
+    vector<int> a(10);
+    for (vector<int>::iterator it = a.begin(); it != a.end(); ++it) {
+        *it = 2;
+        cout << *it << endl;
+    }
+}
+```
+
+## loop
+
+```{rcpp}
+#include <iostream>
+#include <vector>
+using namespace std;
+
+int main() {
+    const size_t rowSize = 3;
+    const size_t colSize = 4;
+    int ia[rowSize][colSize];
+    for (size_t i = 0; i != rowSize; ++i) {
+        for (size_t j = 0; j != colSize; ++j) {
+            ia[i][j] = i * colSize + j;
+            cout << ia[i][j] << endl;
+        }
+    }
+}
+```
+
+## 遍历字符串
+
+```{rcpp}
+#include <iostream>
+#include <vector>
+using namespace std;
+
+int main() {
+    string str("some string"); 
+    for (string::size_type ix = 0; ix != str.size(); ++ix){
+            cout << str[ix] << endl;
+    }
+}
+
+strlen(s)
+    
+// Returns true if s is empty; otherwise returns false
+s.empty()
+
+// Returns number of characters in s Returns the character at position n in s;
+s.size() 
+
+// true if c is a letter or a digit.
+isalnum(c) 
+
+// true if c is a letter
+isalpha(c) 
+
+// true if c is a control character
+iscntrl(c) 
+
+// true if c is a digit.
+isdigit(c) 
+
+// truet if c is nott a space but is printable.
+isgraph(c)
+
+// true if c is a lowercase letter.
+islower(c) 
+
+// true if c is a printable character.
+isprint(c)
+```
+
+## vector遍历
+
+```{rcpp}
+#include <iostream>
+#include <vector>
+using namespace std;
+
+int main() {
+    vector<int> b;
+    vector<string> a;
+
+    vector<double> a1(10); 
+    vector<string> b1(10);
+    
+    vector<int> b2(10,-1);
+    vector<string> a2(10,"hi");
+
+    a.push_back("hi");
+    a.empty();
+    a.size();
+    a[1];
+
+    for (vector<int>::size_type i = 0; ix != a.size(); ++i){
+        cout<<"hello"<<endl;
+    }
+    
+    for (vector<int>::iterator i = a.begin(); i != a.end(); ++i){
+         cout<<"hello"<<endl;
+    }
+    
+    for (vector<string>::const_iterator i = a.begin(); i != a.end(); ++i){
+         cout<<"hello"<<endl;
+    }
+}
+```
+
+## bitset
+
+```{rcpp}
+#include <bitset>
+#include <iostream>
+using namespace std;
+
+int main() {
+
+    // 0000000000
+    bitset<10> a1;
+
+    // 1111111111111111
+    bitset<16> a2(0xffff);
+
+    // 0111000111000111
+    bitset<16> a3(1111111111111111);
+
+    // 00000000000000000000000000001100
+    string a4("1100");
+    string a6 = "11010";
+    bitset<32> a5(a4);
+
+
+    string str("1111111000000011001101");
+    
+    // 4 bits starting at str[5], 1100 
+    bitset<32> b(str, 5, 4);
+    
+    // use last 4 characters
+    bitset<32> b1(str, str.size() - 4); 
+
+    b.any() 
+    b.none() 
+    b.count() 
+    b.size() 
+    b[pos] 
+    b.test(pos) 
+    b.set() 
+    b.set(pos)
+    b.reset() 
+    b.reset(pos) 
+    b.flip() 
+    b.flip(pos) 
+    b.to_ulong() 
+    os << b
+}
+```
+
+## array
+
+```{rcpp}
+#include <bitset>
+#include <iostream>
+using namespace std;
+
+int main() {
+    const int n = 5;
+    float score[n];
+    cin >> score[0];
+    float sum = score[0];
+    for (int i = 1; i < n; i++) {
+        cin >> score[i];
+        sum = sum + score[i];
+    }
+    cout << "mean score = " << sum / n << endl;
+    
+    // 定义array
+    int a1[] = {0, 1, 2};
+    int const nn = 5;
+    int a2[nn] = {0, 1, 2, 3, 4};
+    char a3[3] = {'c', 'c', 'c'};
+    char a4[] = "ccvc";
+
+    for (int i = 0; i != 3; ++i) {
+        a2[i] = a1[i];
+    }
+}
+```
+
+## pointer
+
+```{rcpp}
+
+
+```
