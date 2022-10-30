@@ -4,7 +4,7 @@ library(CVXR)
 
 
 #data("dataset10")
-load("MAFS5310 Portfolio Optimization with R/Portforlio game/game0/stockdata_from_2008-12-01_to_2018-12-01.RData")
+load("~/Desktop/Working Space/HKUST-courses/MAFS 5310 Portfolio Optimization with R/Portforlio game/game0/stockdata_from_2008-12-01_to_2018-12-01.RData")
 
 # show dataset class
 # class(dataset10)
@@ -26,7 +26,7 @@ load("MAFS5310 Portfolio Optimization with R/Portforlio game/game0/stockdata_fro
 # )
 
 #generate 100 random samples each containing 50 random assets over a random window of two years
-N_datasets <- 50
+N_datasets <- 10
 #N_datasets <- 100
 mydataset <- financialDataResample(
     stockdata,
@@ -172,8 +172,8 @@ portfolio_list <- list("QuintP" = QuintP,
                        "MSRP"   = MSRP,
                        "RPP"    = RPP,
                        "MDP"    = MDP,
-                       "MDCP"   = MDCP
-                       #"HOP"    = HOP
+                       "MDCP"   = MDCP,
+                       "HOP"    = HOP
 )
 
 
@@ -182,8 +182,8 @@ bt <- portfolioBacktest(
     portfolio_funs = portfolio_list,
     dataset = mydataset,
     benchmark = c("1/N", "index"),
-    shortselling = TRUE,
-    leverage = 1.5,
+    shortselling = FALSE,
+    leverage = 1,
     lookback = 100,
     optimize_every = 10,
     rebalance_every = 1,
@@ -212,8 +212,9 @@ bt <- portfolioBacktest(
 leaderboard2 <- backtestLeaderboard(
     bt, 
     weights = list(
-        "annual return"  = 2, 
+        "annual return"  = 1, 
         "annual volatility"  = 1,
+        "Sharpe ratio" = 1,
         "max drawdown" = 1,
         "failure rate"  = 6)
 )

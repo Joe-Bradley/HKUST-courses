@@ -1,7 +1,7 @@
 library(portfolioBacktest)
 library(CVXR)
 
-QuintP <- function(dataset, ...) {
+portfolio_fun <- function(dataset, ...) {
     prices <- dataset$adjusted
     N <- ncol(prices)
     X <- diff(log(prices))[-1]  # returns
