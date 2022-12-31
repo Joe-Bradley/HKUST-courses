@@ -4,7 +4,7 @@ library(CVXR)
 
 
 #data("dataset10")
-load("~/Desktop/Working Space/HKUST-courses/MAFS 5310 Portfolio Optimization with R/Portforlio game/game0/stockdata_from_2008-12-01_to_2018-12-01.RData")
+# load("~/Desktop/Working Space/HKUST-courses/MAFS 5310 Portfolio Optimization with R/Portforlio game/game0/stockdata_from_2008-12-01_to_2018-12-01.RData")
 
 # show dataset class
 # class(dataset10)
@@ -159,21 +159,97 @@ HOP<- function(dataset,...){
     return(w)
 }
 
+auxiliary_function <- function(X ,verbose = FALSE) {
+    # here whatever code
+    max_iter <- 100
+    error_th_Sigma <- 1e-3
+    
+    #Gaussian initial point
+    Sigma <- cov(X)  
+    Sigma <- Sigma/sum(diag(Sigma))
+    #loop
+    obj_value_record <- Sigma_diff_record <- rep(NA, max_iter)
+    for (k in 1:max_iter) {
+        Sigma_prev <- Sigma
+        N<-ncol(X)
+        #Tyler update
+        weights <- 1/rowSums(X * (X %*% solve(Sigma)))   # 1/diag( X %*% inv(Sigma) %*% t(X) )
+        obj_value_record[k] <- - (N/2)*sum(log(weights)) + (T/2)*sum(log(eigen(Sigma)$values))
+        Sigma <- (N/T) * crossprod( sqrt(weights)*X )  # (N/T) * t(X) %*% diag(weights) %*% X
+        Sigma <- Sigma/sum(diag(Sigma))
+        
+        #stopping criterion
+        Sigma_diff_record[k] <- norm(Sigma - Sigma_prev, "F")/norm(Sigma_prev, "F")
+        if (Sigma_diff_record[k] < error_th_Sigma)
+            break
+    }
+    obj_value_record <- obj_value_record[1:k]
+    Sigma_diff_record <- Sigma_diff_record[1:k]
+    if (verbose)
+        plot(obj_value_record, type = "b", col = "blue",
+             main = "Convergence of objective value", xlab = "iterations", ylab = "obj value")
+    
+    #finally, recover missing scaling factor
+    sigma2 <- apply(X, 2, var)
+    d <- diag(Sigma)
+    kappa <- sum(sigma2*d)/sum(d*d)
+    Sigma <- kappa*Sigma
+    
+    return(Sigma)
+}
+
+RPP_plus<- function(dataset, ...) {
+    X <- diff(log(dataset$adjusted))[-1]
+    X <- as.matrix(X)
+    mu <- colMeans(X)
+    #Sigma<-cov(X)
+    Sigma<-auxiliary_function(X)
+    rpp_mu <- riskParityPortfolio(Sigma, mu = mu, lmd_mu = 5e-6, formulation = "rc-double-index")
+    return(as.vector(rpp_mu$w))
+}
+
+CVaR <- function(dataset, lmd = 0.5, alpha = 0.95) {
+    prices <- dataset$adjusted
+    X <- diff(log(prices))[-1] 
+    T <- nrow(X)
+    N <- ncol(X)
+    X <- as.matrix(X)
+    mu <- colMeans(X)
+    
+    # variables
+    w <- Variable(N)
+    z <- Variable(T)
+    zeta <- Variable(1)
+    
+    # problem
+    prob <- Problem(
+        Maximize(t(w) %*% mu - lmd*zeta - (lmd/(T*(1-alpha))) * sum(z)),
+        constraints = list(z >= 0, 
+                           z >= -X %*% w - zeta,
+                           w >= 0, 
+                           sum(w) == 1)
+    )
+    result <- solve(prob)
+    return(as.vector(result$getValue(w)))
+}
+
 
 #############################################################################
 ###########################回测##############################################
 #############################################################################
 
 # portfolio_list
-portfolio_list <- list("QuintP" = QuintP,
-                       "GMVP"   = GMVP,
-                       "MVP"    = MVP,
-                       "IVP"    = IVP,
-                       "MSRP"   = MSRP,
+portfolio_list <- list(#"QuintP" = QuintP,
+                       #"GMVP"   = GMVP,
+                       #"MVP"    = MVP,
+                       #"IVP"    = IVP,
+                       #"MSRP"   = MSRP,
                        "RPP"    = RPP,
-                       "MDP"    = MDP,
-                       "MDCP"   = MDCP,
-                       "HOP"    = HOP
+                       #"MDP"    = MDP,
+                       #"MDCP"   = MDCP,
+                       #"HOP"    = HOP,
+                       #"RPP_plus" = RPP_plus,
+                       "CVaR" = CVaR
 )
 
 
@@ -184,7 +260,7 @@ bt <- portfolioBacktest(
     benchmark = c("1/N", "index"),
     shortselling = FALSE,
     leverage = 1,
-    lookback = 100,
+    lookback = 200,
     optimize_every = 10,
     rebalance_every = 1,
     show_progress_bar = TRUE,
@@ -195,33 +271,36 @@ bt <- portfolioBacktest(
     # paral_datasets = 5,
 )
 
-# 查看全部数据的表现
-#res_sum <- backtestSummary(bt)
-#names(res_sum)
-#res_sum$performance_summary
 
-# # leaderboard
-# summaryTable(
-#     res_sum, 
-#     type = "DT",    
-#     order_col = 2, 
-#     order_dir = "desc"
-# )
 
-# leaderboard2
-leaderboard2 <- backtestLeaderboard(
+
+# leaderboard
+leaderboard <- backtestLeaderboard(
     bt, 
     weights = list(
-        "annual return"  = 1, 
-        "annual volatility"  = 1,
-        "Sharpe ratio" = 1,
+        "annual return"  = 2, 
+        "VaR (0.95)"  = 1,
+        "CVaR (0.95)" = 1,
         "max drawdown" = 1,
-        "failure rate"  = 6)
+        "failure rate"  = 5)
 )
 
 # show leaderboard
 library(gridExtra)
-grid.table(leaderboard2$leaderboard_scores)
+grid.table(leaderboard$leaderboard_scores)
+
+# 查看全部数据的表现
+#res_sum <- backtestSummary(bt)
+#names(res_sum)
+#res_sum$performance_summary
+#
+# leaderboard
+# summaryTable(
+#     res_sum,
+#     type = "DT",
+#     order_col = 2,
+#     order_dir = "desc"
+# )
 
 # # bar plot
 # summaryBarPlot(

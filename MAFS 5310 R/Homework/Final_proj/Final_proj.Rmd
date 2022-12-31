@@ -1,0 +1,66 @@
+---
+title: "Volatility Models in Option"
+author: "xiaoli_209255438"
+date: "5 Dec 2022"
+output:
+  xaringan::moon_reader:
+    css: [default, zh-CN.css]
+    lib_dir: libs
+    nature:
+      highlightStyle: github
+      highlightLines: true
+      countIncrementalSlides: false
+---
+
+.pull-left[
+### Volatility models
+- **Standard deviation(SD)**
+
+$$\sigma=\sqrt{\frac{1}{n-1}\sum_{i=1}^n(X_i-\bar{X})}$$
+
+- **Exponentially Weighted Moving Average(EWMA)** 
+
+$$\sigma_n = \lambda\sigma_{n-1}^2 + (1-\lambda)u_{n-1}^2$$
+
+- **Generalized AutoRegressive Conditional Heteroskedasticity(GARCH)**
+
+
+$$\sigma_n = (1-\alpha-\beta)V_L + \alpha u_{n-1}^2 + \beta\sigma_{n-1}^2$$
+
+- **Stochastic Volatility(SA)**
+
+$$d\nu_t = \alpha_{\nu,t}dt+\beta_{\nu,t}dB_t$$
+]
+
+.pull-right[
+### Option pricing models
+- **Simple Black-Scholes**
+$$Call = Se^{-qt}N(d_1)-Ke^{-rt}N(d_2)$$
+$$Put = Ke^{-rt}N(-d_2)-Se^{-qt}N(-d_1)$$
+$$d_{1,2}= \frac{log(\frac{S}{K})+(r-q\pm\frac{\sigma^2}{2})t}{\sigma\sqrt{t}}$$
+
+- **The Heston Model**
+$$dS_t = \mu S_td_t + \sqrt{v_t}S_tdW_1$$
+$$dv_t = \alpha(S_t, v_t, t)d_t + \sigma \beta(S_t, v_t, t)dW2$$
+$$dW_1 \cdot dW_2 = \rho dt $$
+$$parameter = (v_0, \theta, \rho, \kappa, \xi)$$
+
+]
+---
+#Results
+
+3month-call option on Apple Inc. with following parameter.
+- K = 120, S = 148.11, R = 0.0421, T = 0.25, Q = 0.0061, Actual call price = 31.35
+```{r echo=FALSE}
+mat <- matrix(nrow=2, ncol=6)
+mat[1,] <- c("In-the-Money",26.74217757,27.1084363, 26.91855601, 30.34989122,31.35)
+mat[2,] <- c("Out-of-Money", 0,1.129831294, 0.6713966474, 2.089795823,2.19)
+df <- as.data.frame(mat)
+colnames(df) <- c(" ","BSM_SD","BSM_EWMA","BSM_GARCH", "BSM_SV","Actual")
+print(df)
+```
+
+Conclude:
+- The results of standard deviation, EWMA, GARCH seems to be inaccurate. The most possible reason is that the calculation formula is based on European style, while the option provided by APPLE Inc.(AAPL) is American type. The actual trading option price must be higher than or equal to the results computed by Black-Scholes equation.
+
+- Since the stochastic volatility models are calibrated to satisfy the implied volatility from the real market, the model capture the forward looking factors in the market. As a consequence, The Heston Model offers more precise prediction in option pricing.

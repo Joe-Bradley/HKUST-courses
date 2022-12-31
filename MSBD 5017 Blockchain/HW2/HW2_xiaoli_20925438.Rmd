@@ -1,0 +1,72 @@
+---
+title: "MSBD5017 Homework #2" 
+author: "XiaoLi_20925438" 
+date: "23 Nov 2022"
+output:
+    rmdformats::readthedown: 
+    self_contained: true 
+    thumbnails: true 
+    lightbox: true 
+    gallery: false 
+    highlight: tango
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Question1
+
+**When we consider blockchain for an application, what key factors need to be considered. Please list and elaborate in detail.**
+
+-   How to build a trust system between different customers
+
+    -   A valid and robust smart contract. In blockchain applications, the smart contract not only act as a collection of rules we should observe but also a transparent middleman in our transactions, so a valid and robust smart contract with little potential weakness is what we need.
+
+    -   A safe environment is needed. Build blockchian free from whether internal or external threatens. Public blockchains are a perfect example of this. Everyone in the public blockchain can see the transactions, so it is super transparent. On the other hand, private or federated blockchain could be best for enterprises that want to remain transparent among staff and protect their sensitive information along the way from public view.
+
+-   Findout which business scenario we need to in decentralized way.
+
+    The network is decentralized meaning it doesn't have any governing authority or a single person looking after the framework. Rather a group of nodes maintains the network making it decentralized.
+
+-   Can the project actract enough active user to make the whole system more secure.
+
+    The more user the safer blockchain environment will be because of the consensus algorithms. The more users in the blockchain, the cost of attacking the block chain system will be much more.
+
+# Question 2
+
+**For the following applications, what are your recommendations and why?**
+
+1.  **a) A large logistics center with many 3rd parties to support**
+
+2.  **b) Alice is running two coffee shops in Kowloon and Shatin**
+
+3.  **c) HKUST's complete list of full courses offered by all departments**
+
+4.  **d) A technology startup specializes in AI and data analytics for healthcare**
+
+5.  **e) A trade organization uses NFT for marketing and promotion**
+
+I choose a)
+
+This logistics center is typically acting as a centralized way to connect various parties. We can move the system to blockchain to honor the following advantages.
+
+-   Improve the efficiency
+
+    -   peer to peer network can make communication between nearby nodes more efficiency and fast.
+
+-   Reduce corruption
+
+    -   Everyone in the public blockchain can see the transactions, so it is super transparent leaving no room for corruption.
+
+-   Enhance data security
+
+    -   the use of distributed ledgers can help to preserve the transcation data.
+
+-   Get consensus
+
+    -   Every blockchain thrives because of the consensus algorithms. The architecture is cleverly designed, and consensus algorithms are at the core of this architecture. Every blockchain has a consensus to help the network make decisions.
+
+-   Faster Settlement
+
+    -   Traditional banking systems are quite slow. Sometimes it can take days to process a transaction after finalizing all settlements. It also can be corrupted quite easily. Blockchain offers a faster settlement compared to traditional banking systems. This way a user can transfer money relatively faster, which saves a lot of time in the long run.

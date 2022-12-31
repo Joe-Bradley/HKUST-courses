@@ -1,0 +1,372 @@
+---
+title: "MAFS5310 Homework #2" 
+author: "XiaoLi_20925438" 
+date: "9 Nov 2022"
+output:
+    rmdformats::readthedown: 
+    self_contained: true 
+    thumbnails: true 
+    lightbox: true 
+    gallery: false 
+    highlight: tango
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Functions to realize risk parity portfolio
+
+## **Step 1**
+
+-   **Load market data**
+
+```{r message=FALSE, warning=FALSE}
+library(portfolioBacktest)
+library(xts)  # to manipulate time series of stock data
+library(quantmod)  # to download stock data
+library(PerformanceAnalytics)  # to compute performance measures
+
+# download data from YahooFinance
+stock_namelist <- c("AAPL", "AMD", "ADI",  "ABBV", "AEZS", "A",  "APD", "AA","CF")
+
+prices <- xts()
+for (i in 1:length(stock_namelist)) {
+  tmp <- Ad(getSymbols(stock_namelist[i], from = "2014-01-01", to = "2016-12-31", auto.assign = FALSE))
+  tmp <- na.approx(tmp, na.rm = FALSE)  # interpolate NAs
+  prices <- cbind(prices, tmp)
+}
+colnames(prices) <- stock_namelist
+
+tclass(prices) <- "Date"
+# compute log-returns
+X_log <- diff(log(prices))[-1]
+X_lin <- (prices/lag(prices) - 1)[-1]
+
+# number of stocks
+N <- ncol(X_log) 
+
+# number of days
+T <- nrow(X_log)  
+
+# compute mu
+mu <- colMeans(X_log)
+
+# compute sigma
+Sigma <- cov(X_log)
+
+# plot
+plot(
+    prices/rep(prices[1, ], 
+    each = nrow(prices)), 
+    col = rainbow10equal, 
+    legend.loc = "topleft",
+    main = "Normalized prices"
+)
+```
+
+## **Step 2**
+
+-   **Design a portfolio function using any package you find.**
+
+-   **Compare it with your own implementation or from the course slides.**
+
+### Function1: using package ***`portfolioBacktest`***
+
+```{r}
+library(portfolioBacktest)
+library(riskParityPortfolio)
+
+# RPP 
+bt_RPP <- function(dataset, ...) {
+    prices <- dataset$adjusted
+    log_returns <- diff(log(prices))[-1]
+    return(riskParityPortfolio(cov(log_returns))$w)
+}
+```
+
+### Function2: your own ***`implementation`***
+
+```{r}
+bt_RPP_own <- function(dataset, ...) {
+    prices <- dataset$adjusted
+    N <- ncol(prices)
+    X <- diff(log(prices))[-1]  # returns
+    Sigma <- cov(X)
+    
+    # minimize the target function using "L-BFGS-B"
+    Target = function(x)
+    {
+        x = matrix(c(x, 1-sum(x)))
+        TRC = as.vector((Sigma %*% x) * x)
+        return(sum(outer(TRC,TRC,"-")^2))
+    }
+    
+    sol = optim(
+        par = rep(1/N,N-1), 
+        Target,
+        method = "L-BFGS-B",
+        lower = 0
+    )
+    w = c(sol$par, 1-sum(sol$par))
+    return(w)
+}
+```
+
+## **Step 3**
+
+-   **Write some benchmark portfolios**
+
+### MVP
+
+```{r}
+bt_MVP <- function(dataset, lmd = 0.5) {
+    prices <- dataset$adjusted
+    N <- ncol(prices)
+    
+    # returns
+    X <- diff(log(prices))[-1]  
+    
+    # compute sigma
+    Sigma <- cov(X)
+    
+    # compute mu
+    mu <- colMeans(X)
+    
+    w <- Variable(nrow(Sigma))
+    
+    prob <- Problem(Maximize(t(mu) %*% w - lmd*quad_form(w, Sigma)),
+                  constraints = list(w >= 0, sum(w) == 1))
+    result <- solve(prob)
+    return(as.vector(result$getValue(w)))
+}
+```
+
+### IVP
+
+```{r}
+bt_IVP <- function(dataset, ...) {
+    prices <- dataset$adjusted
+    N <- ncol(prices)
+    X <- diff(log(prices))[-1]  # returns
+    Sigma <- cov(X)
+    
+    # portfolio design
+    sigma <- sqrt(diag(Sigma))
+    w <- 1/sigma
+    w <- w/sum(w)
+    return(w)
+}
+```
+
+### MDP
+
+```{r}
+bt_MDP <- function(dataset, ...) {
+    prices <- dataset$adjusted
+    X <- diff(log(prices))[-1]  # returns
+    Sigma <- cov(X)
+    mu <- sqrt(diag(Sigma))
+    
+    w_ <- Variable(nrow(Sigma))
+    prob <- Problem(Minimize(quad_form(w_, Sigma)),
+                    constraints = list(w_ >= 0, t(mu) %*% w_ == 1))
+    result <- CVXR::solve(prob)
+    w <- as.vector(result$getValue(w_)/sum(result$getValue(w_)))
+    names(w) <- colnames(Sigma)
+    return(w)
+}
+```
+
+## **Step 4**
+
+#### **Back testing**
+
+```{r message=FALSE, warning=FALSE}
+library(CVXR)
+# MVP
+MVP <- function(mu, Sigma, lmd = 0.5) {
+  w <- Variable(nrow(Sigma))
+  prob <- Problem(Maximize(t(mu) %*% w - lmd*quad_form(w, Sigma)),
+                  constraints = list(w >= 0, sum(w) == 1))
+  result <- solve(prob)
+  return(as.vector(result$getValue(w)))
+}
+w_MVP <- MVP(mu, Sigma)
+
+# EWP
+w_EWP <- rep(1/N, N)
+
+# RPP
+RPP <- function(prices) {
+    log_returns <- diff(log(prices))[-1]
+    return(riskParityPortfolio(cov(log_returns))$w)
+}
+w_RPP <- RPP(prices)
+
+# RPP_own
+RPP_own <- function(prices) {
+    N <- ncol(prices)
+    X <- diff(log(prices))[-1]  # returns
+    Sigma <- cov(X)
+    
+    # minimize the target function using "L-BFGS-B"
+    Target = function(x)
+    {
+        x = matrix(c(x, 1-sum(x)))
+        TRC = as.vector((Sigma %*% x) * x)
+        return(sum(outer(TRC,TRC,"-")^2))
+    }
+    
+    sol = optim(
+        par = rep(1/N,N-1), 
+        Target,
+        method = "L-BFGS-B",
+        lower = 0
+    )
+    w = c(sol$par, 1-sum(sol$par))
+    return(w)
+}
+
+w_RPP_own <- RPP_own(prices)
+
+
+IVP <- function(prices, ...) {
+    N <- ncol(prices)
+    X <- diff(log(prices))[-1]  # returns
+    Sigma <- cov(X)
+    
+    # portfolio design
+    sigma <- sqrt(diag(Sigma))
+    w <- 1/sigma
+    w <- w/sum(w)
+    return(w)
+}
+w_IVP <- IVP(prices)
+
+
+MDP <- function(prices, ...) {
+    X <- diff(log(prices))[-1]  # returns
+    Sigma <- cov(X)
+    mu <- sqrt(diag(Sigma))
+    
+    w_ <- Variable(nrow(Sigma))
+    prob <- Problem(Minimize(quad_form(w_, Sigma)),
+                    constraints = list(w_ >= 0, t(mu) %*% w_ == 1))
+    result <- CVXR::solve(prob)
+    w <- as.vector(result$getValue(w_)/sum(result$getValue(w_)))
+    names(w) <- colnames(Sigma)
+    return(w)
+}
+w_MDP <- MDP(prices)
+
+# put together all portfolios
+w_all <- cbind(w_MVP,w_EWP,w_RPP,w_RPP_own,w_IVP,w_MDP)
+rownames(w_all) <- colnames(X_lin)
+colnames(w_all) <- c("MVP","EWP","RPP","RPP_own","IVP","MDP")
+w_all
+```
+
+#### **Portfolio allocation**
+
+```{r}
+# plot
+barplot(
+    t(w_all),
+    col = rainbow8equal[1:6],
+    main = "Portfolio allocation",
+    xlab = "stocks",
+    ylab = "dollars",
+    beside = TRUE,
+    legend = colnames(w_all)
+)
+```
+
+#### **risk contribution**
+
+```{r}
+# compute risk contributions
+risk_all <- cbind(
+    "MVP"        = as.vector(w_MVP * (Sigma %*% w_MVP)),
+    "EWP"        = as.vector(w_EWP * (Sigma %*% w_EWP)),
+    "RPP"        = as.vector(w_RPP * (Sigma %*% w_RPP)),
+    "RPP_own"    = as.vector(w_RPP_own * (Sigma %*% w_RPP_own)),
+    "IVP"        = as.vector(w_IVP * (Sigma %*% w_IVP)),
+    "MDP"        = as.vector(w_MDP * (Sigma %*% w_MDP))
+)
+rownames(risk_all) <- colnames(X_lin)
+RRC_all <- sweep(risk_all, MARGIN = 2, STATS = colSums(risk_all), FUN = "/")  # normalize each column
+
+# plot
+barplot(t(RRC_all), col = rainbow8equal[1:6],
+        main = "Relative risk contribution", xlab = "stocks", ylab = "risk", beside = TRUE, 
+        legend = colnames(RRC_all))
+```
+
+#### **risk contribution: RPP with own implementation**
+
+```{r}
+# compute risk contributions
+risk_all <- cbind(
+    "RPP"        = as.vector(w_RPP * (Sigma %*% w_RPP)),
+    "RPP_own"    = as.vector(w_RPP_own * (Sigma %*% w_RPP_own))
+)
+rownames(risk_all) <- colnames(X_lin)
+RRC_all <- sweep(risk_all, MARGIN = 2, STATS = colSums(risk_all), FUN = "/")  # normalize each column
+
+# plot
+barplot(t(RRC_all), col = rainbow8equal[1:2],
+        main = "Relative risk contribution", xlab = "stocks", ylab = "risk", beside = TRUE, 
+        legend = colnames(RRC_all))
+```
+
+## Step 5
+
+From the portfolio allocation graph we can see that:
+
+-   Since APPLE and AMD's stock price is robust during the time interval(Jul 01 2016 - Dec 30 2016). The results from Markowitz Portfolio tells us that we should invest most of our money into AMD and APPLE, because in that way we can enjoy a max utility. However, about the rest of the stocks, due to their bad performance, we should avoid investing them.
+
+From the risk contribution graph we can see that:
+
+-   our own implementation dose not keep tracking of the RPP package, instead it suggests that we should distribute a great majority of risk to AEZS which perform badly and barely produce any profit during the time interval. However, AEZS's graph in the return graph is unique since others don't behave like that(fall almost to the ground). There must be some error in our own implementation. As I change the optimization function(instead using ***`L-BFGS-B`***, using the **default** one), the result turned back to what I expected. The most likely reasons is that the solution falls into a local min, which needs other optimize function to get a better solution.
+
+    ```{r}
+    # RPP_own
+    RPP_own <- function(prices) {
+        N <- ncol(prices)
+        X <- diff(log(prices))[-1]  # returns
+        Sigma <- cov(X)
+        
+        # minimize the target function using "L-BFGS-B"
+        Target = function(x)
+        {
+            x = matrix(c(x, 1-sum(x)))
+            TRC = as.vector((Sigma %*% x) * x)
+            return(sum(outer(TRC,TRC,"-")^2))
+        }
+        
+        sol = optim(
+            par = rep(1/N,N-1), 
+            Target
+            #method = "L-BFGS-B",
+            #lower = 0
+        )
+        w = c(sol$par, 1-sum(sol$par))
+        return(w)
+    }
+
+    w_RPP_own <- RPP_own(prices)
+
+    # compute risk contributions
+    risk_all <- cbind(
+        "RPP"        = as.vector(w_RPP * (Sigma %*% w_RPP)),
+        "RPP_own"    = as.vector(w_RPP_own * (Sigma %*% w_RPP_own))
+    )
+    rownames(risk_all) <- colnames(X_lin)
+    RRC_all <- sweep(risk_all, MARGIN = 2, STATS = colSums(risk_all), FUN = "/")  # normalize each column
+
+    # plot
+    barplot(t(RRC_all), col = rainbow8equal[1:2],
+            main = "Relative risk contribution", xlab = "stocks", ylab = "risk", beside = TRUE, 
+            legend = colnames(RRC_all)) 
+    ```
